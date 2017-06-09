@@ -12,7 +12,8 @@ use Logfile::Tail::Switch;
 use Time::HiRes 'sleep';
 
 my %Opts = (
-    check_freq => 5,
+    check_freq => undef,
+    tail_new => undef,
     glob => undef,
 );
 
@@ -21,7 +22,7 @@ my $PROG = "tailswitch";
 sub parse_options {
     Getopt::Long::GetOptions(
         'help|h|?' => sub {
-            print "Usage: $PROG [options] <glob-pattern>\n";
+            print "Usage: $PROG [options] <glob-pattern> ...\n";
             print <<EOT;
 Usage:
   $PROG [options] <site>
@@ -39,13 +40,20 @@ EOT
             exit 0;
         },
         'check-freq=i' => \$Opts{check_freq},
+        'tail-new' => \$Opts{tail_new},
+        'follow|f' => sub {},
     );
 
-    die "$PROG: Please specify glob\n" unless @ARGV == 1;
+    die "$PROG: Please specify at least 1 glob\n" unless @ARGV;
+    $Opts{globs} = [@ARGV];
 }
 
 sub run {
-    my $tail = Logfile::Tail::Switch->new($Opts{glob});
+    my $tail = Logfile::Tail::Switch->new(
+        globs => $Opts{globs},
+        check_freq => $Opts{check_freq},
+        tail_new   => $Opts{tail_new},
+    );
 
     while (1) {
         my $line = $tail->getline;
@@ -68,11 +76,11 @@ run();
 
 =head1 SYNOPSIS
 
- % tailswitch [OPTIONS] <GLOB PATTERN>
+ % tailswitch [OPTIONS] <GLOB PATTERN> ...
 
 Don't forget to quote the glob pattern to prevent shell expansion. Example:
 
- % tailswitch '/var/log/http/*.log'
+ % tailswitch '/var/log/http_access.*.log' '/var/log/https_access.*.log'
 
 
 =head1 DESCRIPTION
@@ -93,7 +101,12 @@ server, the webserver is configured to write to daily log files:
 No-op, provided just for compatibility with B<tail> Unix command. Heavy C<tail>
 users might have C<-f> in their muscle memory.
 
-=head2 --check-freq=i (default: 5)
+=head2 --tail-new
+
+If this option is given, then when a new file appears it will not be read from
+the beginning but directly tail'ed.
+
+=head2 --check-freq=i (default: 1)
 
 
 =head1 SEE ALSO
