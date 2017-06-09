@@ -1,0 +1,107 @@
+#!perl
+
+# DATE
+# VERSION
+
+use 5.010001;
+use strict;
+use warnings;
+
+use Getopt::Long qw(:config no_ignore_case bundling no_ignore_case gnu_compat no_getopt_compat);
+use Logfile::Tail::Switch;
+use Time::HiRes 'sleep';
+
+my %Opts = (
+    check_freq => 5,
+    glob => undef,
+);
+
+my $PROG = "tailswitch";
+
+sub parse_options {
+    Getopt::Long::GetOptions(
+        'help|h|?' => sub {
+            print "Usage: $PROG [options] <glob-pattern>\n";
+            print <<EOT;
+Usage:
+  $PROG [options] <site>
+  $PROG --help, -h, -?
+  $PROG --version, -v
+Options:
+  --check-freq=i
+For more details, see the documentation (man $PROG).
+EOT
+            exit 0;
+        },
+        'version|v' => sub {
+            no warnings 'once';
+            print "$PROG version ", ($main::VERSION // "dev"), "\n";
+            exit 0;
+        },
+        'check-freq=i' => \$Opts{check_freq},
+    );
+
+    die "$PROG: Please specify glob\n" unless @ARGV == 1;
+}
+
+sub run {
+    my $tail = Logfile::Tail::Switch->new($Opts{glob});
+
+    while (1) {
+        my $line = $tail->getline;
+        if (length $line) {
+            print $line;
+        } else {
+            sleep 0.1;
+        }
+    }
+}
+
+# MAIN
+
+$|++;
+parse_options();
+run();
+
+# PODNAME:
+# ABSTRACT: Tail a file, but switch when another file with newer name appears
+
+=head1 SYNOPSIS
+
+ % tailswitch [OPTIONS] <GLOB PATTERN>
+
+Don't forget to quote the glob pattern to prevent shell expansion. Example:
+
+ % tailswitch '/var/log/http/*.log'
+
+
+=head1 DESCRIPTION
+
+This utility can tail a file, but switch when another file with newer name
+appears. This utility is useful when tailing log that are written to separated
+files (usually with timestamps in their names). For example, on an Spanel
+server, the webserver is configured to write to daily log files:
+
+ /s/<SITE-NAME>/syslog/http_access.<YYYY>-<MM>-<DD>.log
+ /s/<SITE-NAME>/syslog/https_access.<YYYY>-<MM>-<DD>.log
+
+
+=head1 OPTIONS
+
+=head2 --follow, -f
+
+No-op, provided just for compatibility with B<tail> Unix command. Heavy C<tail>
+users might have C<-f> in their muscle memory.
+
+=head2 --check-freq=i (default: 5)
+
+
+=head1 SEE ALSO
+
+B<tail> Unix command.
+
+L<tail> from L<ppt>.
+
+L<Logfile::Tail::Switch> which is used by this utility.
+
+=cut
