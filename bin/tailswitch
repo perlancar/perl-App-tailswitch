@@ -8,7 +8,6 @@ use strict;
 use warnings;
 
 use Getopt::Long qw(:config no_ignore_case bundling no_ignore_case gnu_compat no_getopt_compat);
-use Logfile::Tail::Switch;
 use Time::HiRes 'sleep';
 
 my %Opts = (
@@ -20,6 +19,8 @@ my %Opts = (
 my $PROG = "tailswitch";
 
 sub parse_options {
+    require String::Wildcard::Bash;
+
     Getopt::Long::GetOptions(
         'help|h|?' => sub {
             print "Usage: $PROG [options] <glob-pattern> ...\n";
@@ -45,10 +46,18 @@ EOT
     );
 
     die "$PROG: Please specify at least 1 glob\n" unless @ARGV;
+    for (@ARGV) {
+        String::Wildcard::Bash::contains_wildcard($_)
+              or warn "You passed '$_' which doesn't contain any wildcard, ".
+              "probably you need to quote it first?\n";
+    }
+
     $Opts{globs} = [@ARGV];
 }
 
 sub run {
+    require Logfile::Tail::Switch;
+
     my $tail = Logfile::Tail::Switch->new(
         globs => $Opts{globs},
         check_freq => $Opts{check_freq},
